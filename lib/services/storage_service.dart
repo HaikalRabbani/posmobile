@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
-  // --- KUMPULAN KEY (Agar rapi dan tidak typo) ---
+  // --- KUMPULAN KEY ---
   static const String _keyToken = 'token';
   static const String _keyOutletId = 'outlet_id';
   static const String _keyCashierName = 'cashier_name';
@@ -9,7 +9,14 @@ class StorageService {
   static const String _keyUserRole = 'user_role';
   static const String _keyProfilePhoto = 'profile_photo';
   static const String _keyLoginTime = 'login_time';
-  static const String _keyOpeningCash = 'opening_cash';
+  static const String _keyOpeningCash = 'opening_cash'; // Key untuk Kas Awal
+  
+  // Key Shift (Data operasional yang dipertahankan saat logout)
+  static const String _keyIsShiftActive = 'is_shift_active'; 
+  static const String _keyCurrentShiftId = 'current_shift_id';
+  static const String _keyShiftName = 'shift_name';
+  static const String _keyShiftSchedule = 'shift_schedule';
+  static const String _keyLastShiftUserId = 'last_shift_user_id'; 
 
   // --- 1. FUNGSI TOKEN ---
   static Future<void> saveToken(String token) async {
@@ -22,7 +29,7 @@ class StorageService {
     return prefs.getString(_keyToken) ?? '';
   }
 
-  // --- 2. FUNGSI OUTLET DATA (Tetap Ada Saat Logout) ---
+  // --- 2. FUNGSI OUTLET DATA ---
   static Future<void> saveOutletId(int id) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_keyOutletId, id);
@@ -43,9 +50,7 @@ class StorageService {
     return prefs.getString(_keyOutletName) ?? "Aranus PoS R&B";
   }
 
-  // --- 3. FUNGSI DATA KARYAWAN (Dihapus Saat Logout) ---
-  
-  // Nama Kasir
+  // --- 3. FUNGSI DATA KARYAWAN ---
   static Future<void> saveCashierName(String name) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCashierName, name);
@@ -66,7 +71,6 @@ class StorageService {
     return prefs.getString(_keyLoginTime);
   }
 
-  // Role User
   static Future<void> saveUserRole(String role) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyUserRole, role);
@@ -77,7 +81,6 @@ class StorageService {
     return prefs.getString(_keyUserRole) ?? "Cashier";
   }
 
-  // Foto Profil (HANYA SATU FUNGSI)
   static Future<void> saveProfilePhoto(String url) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyProfilePhoto, url);
@@ -88,30 +91,113 @@ class StorageService {
     return prefs.getString(_keyProfilePhoto) ?? "";
   }
 
-  static Future<void> saveOpeningCash(int amount) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setInt(_keyOpeningCash, amount);
-}
+  // --- 4. FUNGSI KAS AWAL (LOGIKA ROBUST) ---
+  static Future<void> saveOpeningBalance(int amount) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyOpeningCash, amount);
+  }
 
-static Future<int> getOpeningCash() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getInt(_keyOpeningCash) ?? 0;
-}
+  static Future<int> getOpeningBalance() async {
+    final prefs = await SharedPreferences.getInstance();
+    final val = prefs.get(_keyOpeningCash); 
+    
+    if (val == null) return 0;
+    
+    // Proteksi Multi-Type: Menangani jika tersimpan sebagai int, double, atau String
+    if (val is int) return val;
+    if (val is double) return val.toInt(); 
+    if (val is String) {
+      // Jika tersimpan sebagai String (misal dari input text), bersihkan karakter non-angka
+      return int.tryParse(val.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    }
+    
+    return 0;
+  }
 
-  // --- 4. PROSES LOGOUT KASIR ---
+  static Future<void> clearOpeningBalance() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyOpeningCash);
+  }
+
+  // Alias fungsi lama agar tidak error di bagian code lain
+  static Future<void> saveOpeningCash(double amount) async => saveOpeningBalance(amount.toInt());
+  static Future<double> getOpeningCash() async {
+    final val = await getOpeningBalance();
+    return val.toDouble();
+  }
+
+  // --- 5. FUNGSI LOGIKA SHIFT ---
+  static Future<void> saveShiftStatus(bool isActive) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIsShiftActive, isActive);
+  }
+
+  static Future<bool?> getShiftStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyIsShiftActive);
+  }
+
+  static Future<bool> isShiftActive() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyIsShiftActive) ?? false;
+  }
+
+  static Future<void> saveCurrentShiftId(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCurrentShiftId, id);
+  }
+
+  static Future<String?> getCurrentShiftId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyCurrentShiftId);
+  }
+
+  static Future<void> saveShiftInfo(String name, String schedule) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyShiftName, name);
+    await prefs.setString(_keyShiftSchedule, schedule);
+  }
+
+  static Future<String> getShiftName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyShiftName) ?? "Shift -";
+  }
+
+  static Future<String> getShiftSchedule() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyShiftSchedule) ?? "00:00 - 00:00";
+  }
+
+  static Future<void> saveLastShiftUserId(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyLastShiftUserId, id);
+  }
+
+  static Future<int> getLastShiftUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_keyLastShiftUserId) ?? 0;
+  }
+
+  // --- 6. LOGIKA LOGOUT VS TUTUP KASIR ---
+
+  // Logout hanya menghapus sesi user, data shift tetap aman
   static Future<void> logoutKasir() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // Menghapus SEMUA data yang berkaitan dengan personil/karyawan
     await prefs.remove(_keyToken);
     await prefs.remove(_keyCashierName);
     await prefs.remove(_keyUserRole);
     await prefs.remove(_keyProfilePhoto);
+  }
 
-    await prefs.remove('opening_cash'); 
-    await prefs.remove('login_time');
-
-    // Data Outlet ID & Name TIDAK DIHAPUS agar HP tetap terkunci ke cabang tsb
-    print("Logout Berhasil: Sesi karyawan dibersihkan, Identitas Outlet dipertahankan.");
+  // Menghapus data operasional saat shift benar-benar selesai
+  static Future<void> tutupKasir() async {
+    final prefs = await SharedPreferences.getInstance();
+    await clearOpeningBalance(); 
+    await prefs.remove(_keyLoginTime);
+    await prefs.remove(_keyIsShiftActive);
+    await prefs.remove(_keyCurrentShiftId);
+    await prefs.remove(_keyShiftName);
+    await prefs.remove(_keyShiftSchedule);
+    await prefs.remove(_keyLastShiftUserId); 
   }
 }

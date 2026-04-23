@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
-import 'history_screen.dart'; 
-import 'rekap_screen.dart';
+import 'history_screen.dart';
+import 'shif_screen.dart'; 
 import 'setting_screen.dart';
 import '../style.dart';
 import '../services/storage_service.dart';
+import '../services/api_service.dart'; 
 import '../widgets/opening_cash_dialog.dart';
 
 class MainNavigationScaffold extends StatefulWidget {
@@ -20,9 +21,8 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
   int _currentIndex = 0;
   bool _isSidebarVisible = false;
   
-  // Variabel untuk data profil & outlet
   String _cashierName = "Loading...";
-  String _outletName = "Loading...";
+  String _outletName = "Loading..."; 
   String _profilePhoto = "";
   String _userRole = "Cashier";
   
@@ -45,17 +45,19 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
   }
 
   Future<void> _loadInitialData() async {
-    final name = await StorageService.getCashierName();
-    final outlet = await StorageService.getOutletName();
-    final photo = await StorageService.getProfilePhoto();
-    final role = await StorageService.getUserRole();
+    final results = await Future.wait([
+      StorageService.getCashierName(),
+      StorageService.getOutletName(), 
+      StorageService.getProfilePhoto(),
+      StorageService.getUserRole(),
+    ]);
     
     if (mounted) {
       setState(() {
-        _cashierName = name;
-        _outletName = outlet;
-        _profilePhoto = photo;
-        _userRole = role;
+        _cashierName = results[0] as String;
+        _outletName = results[1] as String;
+        _profilePhoto = results[2] as String;
+        _userRole = results[3] as String;
       });
     }
   }
@@ -116,12 +118,14 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
                     child: IndexedStack(
                       index: _currentIndex,
                       children: [
+                        // Index 0
                         HomeScreen(searchController: _globalSearchController),
-                        const Center(child: Text("Shift Screen")), 
-                        const RekapScreen(), 
-                        // PERBAIKAN DI SINI: Ganti HistoryScreenContent menjadi HistoryScreen
-                        const HistoryScreen(), 
-                        const SettingScreen(), 
+                        // Index 1
+                        ShiftScreen(searchController: _globalSearchController),
+                        // Index 2
+                        HistoryScreen(),
+                        // Index 3
+                        SettingScreen(searchController: _globalSearchController),
                       ],
                     ),
                   ),
@@ -152,7 +156,7 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
             _outletName.toUpperCase(),
             style: AppStyle.titleText.copyWith(
               fontSize: 20, 
-              color: AppStyle.primaryBlue,
+              color: const Color.fromARGB(255, 14, 16, 19),
               letterSpacing: 0.5
             ),
           ),
@@ -219,11 +223,10 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
           const SizedBox(height: 20),
           _buildMenuItem(Icons.home_rounded, "Home", 0),
           _buildMenuItem(Icons.access_time_filled_rounded, "Shift", 1),
-          _buildMenuItem(Icons.assessment_rounded, "Rekapitulasi", 2),
-          _buildMenuItem(Icons.history_rounded, "History", 3),
+          _buildMenuItem(Icons.history_rounded, "History", 2),
           const Spacer(),
           const Divider(indent: 20, endIndent: 20),
-          _buildMenuItem(Icons.settings_rounded, "Setting", 4),
+          _buildMenuItem(Icons.settings_rounded, "Setting", 3),
           _buildMenuItem(Icons.logout_rounded, "Logout", -1, isLogout: true),
           const SizedBox(height: 20),
         ],
