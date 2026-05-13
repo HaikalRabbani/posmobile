@@ -12,7 +12,7 @@ class ReverbService {
   Channel? _channel;
 
   final String reverbAppKey = "r3gcjhwwanzthldyihry";
-  final String reverbHost = "192.168.1.29";
+  final String reverbHost = "192.168.1.31";
   final int reverbPort = 8080;
   final String authUrl = "https://api.etres.my.id/api/broadcasting/auth";
 
