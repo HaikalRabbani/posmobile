@@ -37,11 +37,15 @@ dependencies:
   flutter_svg: ^2.2.4
   http: ^1.6.0
   shared_preferences: ^2.5.5
+  intl: ^0.20.2
+  midtrans_sdk: ^1.2.0
+  qr_flutter: ^4.1.0
+  webview_flutter: ^4.13.1
+  pusher_client_fixed: ^0.0.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  intl: ^0.19.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

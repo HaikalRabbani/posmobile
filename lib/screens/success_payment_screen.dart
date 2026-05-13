@@ -1,44 +1,50 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/order_model.dart';
-import '../style.dart'; // Pastikan import style Anda untuk warna yang konsisten
+import '../constants/style.dart';
+import '../services/printer_service.dart';
+import '../models/transaction_model.dart';
 
 class SuccessPaymentPage extends StatelessWidget {
   final String orderId;
+  final String outletName;
+  final String outletAddress;
   final String paymentMethod;
   final double grandTotal;
+  final List<dynamic> taxBreakdown;
+  final double discountAmount;
   final double amountPaid;
   final double change;
   final Map<int, OrderItem> cart;
   final String tableNumber;
-  final String customerName; // Tambahan parameter Nama Customer
+  final String customerName;
   final String cashierName;
-  final String outletName;
   final String Function(double) formatCurrency;
 
   const SuccessPaymentPage({
     super.key,
     required this.orderId,
+    required this.outletName,
+    required this.outletAddress,
     required this.paymentMethod,
     required this.grandTotal,
+    required this.discountAmount,
+    required this.taxBreakdown,
     required this.amountPaid,
     required this.change,
     required this.cart,
     required this.tableNumber,
-    required this.customerName, // Tambahan di constructor
+    required this.customerName,
     required this.cashierName,
-    required this.outletName,
     required this.formatCurrency,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F3F9), // Background abu muda agar kartu terlihat floating
+      backgroundColor: const Color(0xFFF1F3F9),
       body: Center(
         child: SingleChildScrollView(
           child: Container(
-            // Memberikan batas lebar maksimal agar proporsional di layar lebar (Tablet/Web)
             constraints: const BoxConstraints(maxWidth: 600),
             margin: const EdgeInsets.all(40.0),
             padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 40),
@@ -47,25 +53,22 @@ class SuccessPaymentPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 30,
                   offset: const Offset(0, 10),
-                )
+                ),
               ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Icon Centang
                 const Icon(
                   Icons.check_circle_rounded,
                   color: Color(0xFF4CAF50),
                   size: 120,
                 ),
                 const SizedBox(height: 24),
-                
-                // Judul
                 const Text(
                   "Pembayaran Berhasil!",
                   style: TextStyle(
@@ -77,15 +80,13 @@ class SuccessPaymentPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Order ID: $orderId",
+                  orderId,
                   style: const TextStyle(
                     fontSize: 14,
                     color: Colors.grey,
                     fontFamily: 'Poppins',
                   ),
                 ),
-                
-                // Menampilkan Nama Customer jika ada
                 if (customerName.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
@@ -93,16 +94,15 @@ class SuccessPaymentPage extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppStyle.primaryBlue, // Menggunakan warna biru Aranus POS
+                      color: AppStyle.primaryBlue,
                       fontFamily: 'Poppins',
                     ),
                   ),
                 ],
-                
                 const SizedBox(height: 40),
 
-                // Box Kembalian (Hanya muncul jika Cash)
-                if (paymentMethod == 'Cash' || paymentMethod == 'Tunai')
+                if (paymentMethod.toLowerCase() == 'cash' ||
+                    paymentMethod == 'Tunai')
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 30),
@@ -135,18 +135,25 @@ class SuccessPaymentPage extends StatelessWidget {
                     ),
                   )
                 else
-                  // Jika Non-Tunai, tampilkan Total yang dibayar
                   Column(
                     children: [
-                      const Text("Total Pembayaran", style: TextStyle(color: Colors.grey, fontSize: 16)),
-                      Text(formatCurrency(grandTotal), 
-                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF4285F4))),
+                      const Text(
+                        "Total Pembayaran",
+                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                      ),
+                      Text(
+                        formatCurrency(grandTotal),
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4285F4),
+                        ),
+                      ),
                     ],
                   ),
 
                 const SizedBox(height: 60),
 
-                // Tombol Aksi
                 Row(
                   children: [
                     Expanded(
@@ -178,14 +185,53 @@ class SuccessPaymentPage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionBtn(BuildContext context, String label, Color color, IconData icon, bool isBack) {
+  Widget _buildActionBtn(
+    BuildContext context,
+    String label,
+    Color color,
+    IconData icon,
+    bool isBack,
+  ) {
     return SizedBox(
       height: 65,
       child: ElevatedButton.icon(
-        onPressed: isBack 
-            ? () => Navigator.of(context).popUntil((route) => route.isFirst) 
+        onPressed: isBack
+            ? () => Navigator.of(context).popUntil((route) => route.isFirst)
             : () {
-                // Logika cetak struk di sini
+                final printerService = TerminalPrinterService();
+
+                final List<CartItem> itemsForPrinting = cart.values.map((item) {
+                  return CartItem(
+                    itemName: item.itemName,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    notes: item.notes,
+                  );
+                }).toList();
+
+                final transaction = TransactionModel(
+                  orderId: orderId,
+                  outletName: outletName,
+                  outletAddress: outletAddress,
+                  cashierName: cashierName,
+                  customerName: customerName,
+                  tableNumber: tableNumber,
+                  items: itemsForPrinting,
+                  taxBreakdown: List<Map<String, dynamic>>.from(taxBreakdown),
+                  discountAmount: discountAmount,
+                  totalDariHalaman: grandTotal,
+                );
+
+                printerService.printToTerminal(transaction);
+
+                printerService.printKitchenToTerminal(transaction);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Struk Pelanggan & Dapur Berhasil Dicetak"),
+                    backgroundColor: Colors.blue,
+                  ),
+                );
               },
         icon: Icon(icon, size: 22),
         label: Text(
@@ -199,7 +245,9 @@ class SuccessPaymentPage extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           elevation: 0,
         ),
       ),
